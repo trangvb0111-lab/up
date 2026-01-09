@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PIXEL HOLE JUMP</title>
+<style>
+  body {
+    margin: 0;
+    background: #111;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
+  canvas {
+    display: block;
+    margin: auto;
+    background: #1a1a1a;
+  }
+</style>
+</head>
+<body>
+
+<h3>🌍 PIXEL HOLE JUMP</h3>
+<p>SPACE / CLICK để nhảy</p>
+
+<canvas id="game" width="360" height="640"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// ===== PLAYER =====
+const player = {
+  x: 180,
+  y: 500,
+  size: 24,
+  vy: 0
+};
+
+// ===== HOLE =====
+let hole = {
+  x: 100,
+  width: player.size * 1.5
+};
+
+let gravity = 0.8;
+let jumpPower = -13;
+let score = 0;
+let alive = true;
+let cameraY = 0;
+
+// ===== LEADERBOARD (LOCAL – SẼ ĐỔI FIREBASE) =====
+let leaderboard = JSON.parse(localStorage.getItem("phj_leaderboard")) || [];
+
+function randomHole() {
+  hole.x = Math.random() * (canvas.width - hole.width);
+}
+
+// ===== INPUT =====
+function jump() {
+  if (!alive) return;
+  player.vy = jumpPower;
+  score++;
+  randomHole();
+}
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") jump();
+});
+canvas.addEventListener("click", jump);
+
+// ===== GAME LOOP =====
+function update() {
+  if (!alive) return;
+
+  player.vy += gravity;
+  player.y += player.vy;
+
+  // camera lên cao
+  if (player.y < canvas.height / 2) {
+    cameraY += (canvas.height / 2 - player.y);
+    player.y = canvas.height / 2;
+  }
+
+  // rơi xuống nền
+  if (player.y + player.size >= canvas.height) {
+    // kiểm tra rơi vào lỗ
+    if (
+      player.x + player.size > hole.x &&
+      player.x < hole.x + hole.width
+    ) {
+      endGame();
+    } else {
+      player.y = canvas.height - player.size;
+      player.vy = 0;
+    }
+  }
+}
+
+function endGame() {
+  alive = false;
+
+  setTimeout(() => {
+    // ADS WHEN LOSE (placeholder)
+    alert("📺 Quảng cáo hiển thị tại đây");
+
+    let name = prompt("Game Over! Nhập nickname:");
+    if (name) {
+      leaderboard.push({ name, score });
+      leaderboard.sort((a,b) => b.score - a.score);
+      leaderboard = leaderboard.slice(0,10);
+      localStorage.setItem("phj_leaderboard", JSON.stringify(leaderboard));
+    }
+    location.reload();
+  }, 200);
+}
+
+// ===== DRAW =====
+function drawPlayer() {
+  ctx.fillStyle = "#00ff99";
+  ctx.fillRect(player.x, player.y, player.size, player.size);
+
+  // mắt pixel
+  ctx.fillStyle = "#000";
+  ctx.fillRect(player.x + 6, player.y + 6, 4, 4);
+  ctx.fillRect(player.x + 14, player.y + 6, 4, 4);
+}
+
+function drawHole() {
+  ctx.fillStyle = "#000";
+  ctx.fillRect(hole.x, canvas.height - 10, hole.width, 10);
+}
+
+function drawLeaderboard() {
+  ctx.fillStyle = "#fff";
+  ctx.fillText("TOP 10", 250, 20);
+  leaderboard.forEach((p, i) => {
+    ctx.fillText(`${i+1}. ${p.name}: ${p.score}`, 200, 40 + i*16);
+  });
+}
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  drawPlayer();
+  drawHole();
+
+  ctx.fillStyle = "#fff";
+  ctx.fillText("Height: " + score, 10, 20);
+  ctx.fillText("↑ " + Math.floor(cameraY), 10, 40);
+
+  drawLeaderboard();
+
+  if (!alive) {
+    ctx.fillText("GAME OVER", 140, 300);
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+randomHole();
+loop();
+</script>
+
+</body>
+</html>
